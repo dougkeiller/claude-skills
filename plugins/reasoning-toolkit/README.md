@@ -73,3 +73,12 @@ than pretending.
 ## Origin
 
 Modelled on the eight tools at reasoning.services, rebuilt as local skills.
+
+## Changes in 0.3.0 (2026-11-10), decision-matrix
+
+- A baseline (do nothing) is required in the spec; `"baseline": null` opts out.
+- Stages reordered: anchor each scale, then weights framed by that range, then scores.
+- Must-have screen and an "exclusive or combinable?" check in Stage 1; `groups` in the spec.
+- Engine adds an equal-weights check and a screening table (`top_k`, automatic at 10+ options).
+- Clear message when numpy is missing, with a `uv run --with numpy` fallback.
+- **Breaking:** specs without a `baseline` key are refused.

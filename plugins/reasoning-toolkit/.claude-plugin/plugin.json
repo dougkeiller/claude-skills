@@ -1,6 +1,6 @@
 {
   "name": "reasoning-toolkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Eight structured reasoning methods that force rigour rather than describe it: independent-subagent perspectives, solver-backed logic, and real sensitivity analysis.",
   "author": {
     "name": "Doug Keiller"

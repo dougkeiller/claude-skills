@@ -15,19 +15,37 @@ Spec format:
   ],
   "scores": {"Redox": {"Time to first site": 4, "Integration cost": 2}, ...},
   "score_uncertainty": 0.5,
-  "weight_confidence": "medium"
+  "weight_confidence": "medium",
+  "baseline": "Do nothing",
+  "top_k": 5,
+  "groups": {"Redox": "integration", "Health Gorilla": "integration"}
 }
+
+baseline (REQUIRED): the name of the do-nothing / status-quo option, which must
+  be one of the options. Use null only when there genuinely is no status quo,
+  and say why in the note. Without a baseline you cannot tell whether the winner
+  is good or merely the least bad.
+top_k (optional): screening mode, for cutting a long-list. Reports how often
+  each option lands in the top k. Turned on automatically (k=5) at 10+ options.
+groups (optional): for options that can be combined rather than chosen between.
+  Maps each option to the job it does; the engine then picks one per group.
 
 direction "benefit" = higher raw score is better (default).
 direction "cost"    = higher raw score is worse; it gets inverted internally.
 weight_confidence: "high" | "medium" | "low" — how firm the weights are.
 
 Usage: python3 sensitivity.py spec.json
+Needs numpy. If your python3 lacks it:  uv run --with numpy python sensitivity.py spec.json
 """
 import json
 import sys
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    raise SystemExit("sensitivity.py needs numpy, which this python does not have.\n"
+                     "Run it as:  uv run --with numpy python " + " ".join(sys.argv) + "\n"
+                     "or with any python that has numpy installed.")
 
 CONC = {"high": 80.0, "medium": 25.0, "low": 8.0}
 
@@ -35,6 +53,13 @@ CONC = {"high": 80.0, "medium": 25.0, "low": 8.0}
 def load(path):
     spec = json.load(open(path))
     opts = spec["options"]
+    if "baseline" not in spec:
+        raise SystemExit(
+            'The spec has no "baseline". Add the do-nothing / status-quo option to\n'
+            '"options" and name it: "baseline": "Do nothing". If there genuinely is\n'
+            'no status quo, set "baseline": null and say why in the note.')
+    if spec["baseline"] is not None and spec["baseline"] not in opts:
+        raise SystemExit(f"Baseline '{spec['baseline']}' is not one of the options.")
     crits = spec["criteria"]
     lo, hi = spec.get("scale", [1, 5])
     names = [c["name"] for c in crits]
@@ -112,7 +137,54 @@ def main():
             add("  → This is a coin flip. The matrix is not deciding this for you.")
         elif gap < 12:
             add("  → Narrow. Expect the sensitivity tests below to flip it.")
+    base = spec.get("baseline")
+    b_idx = opts.index(base) if base is not None else None
+    if base is None:
+        add("")
+        add("  No baseline declared: this ranking cannot say whether the winner")
+        add("  beats doing nothing.")
+    else:
+        below = [o for o, v in r if v <= t[b_idx] and o != base]
+        add("")
+        add(f"  Baseline: {base} ({t[b_idx]:.3f}). "
+            f"{len(opts) - 1 - len(below)} option(s) beat it; {len(below)} do not.")
+        if winner == base:
+            add("  → The baseline wins. Nothing here beats the status quo.")
     add("")
+
+    # --- Equal weights ------------------------------------------------------
+    te = adj.mean(axis=1)
+    win_eq = opts[int(np.argmax(te))]
+    add("EQUAL-WEIGHTS CHECK")
+    if win_eq == winner:
+        add(f"  With every criterion weighted the same, {winner} still wins.")
+        add("  The choice of weights is not what decides this.")
+    else:
+        add(f"  With every criterion weighted the same, {win_eq} wins instead of")
+        add(f"  {winner}. The result depends on the weights: be sure they are")
+        add("  what you believe, and see Test 2 for how far each can move.")
+    add("")
+
+    groups = spec.get("groups") or {}
+    if groups:
+        add("COMBINABLE OPTIONS — BEST IN EACH GROUP")
+        add("These options do different jobs and can be used together, so the")
+        add("question is which to pick for each job, not which single one wins.")
+        add("")
+        seen = []
+        for o in opts:
+            g = groups.get(o, "(ungrouped)")
+            if g not in seen:
+                seen.append(g)
+        for g in seen:
+            members = [(o, v) for o, v in r if groups.get(o, "(ungrouped)") == g]
+            add(f"  {g}:")
+            for o, v in members:
+                note = ""
+                if b_idx is not None and o != base:
+                    note = "" if v > t[b_idx] else "   (does not beat the baseline)"
+                add(f"     {o:<28} {v:.3f}{note}")
+        add("")
 
     # --- Drop-one-criterion -------------------------------------------------
     add("-" * 70)
@@ -187,7 +259,12 @@ def main():
         add(f"  {opts[i]:<28} {counts[i] * 100:5.1f}%  {bar}")
     add("")
     top = counts.max()
-    if top >= 0.85:
+    k_top = spec.get("top_k") or (5 if len(opts) >= 10 else None)
+    screening = bool(k_top) and k_top < len(opts)
+    if screening or groups:
+        add("  (With a long-list or combinable options, a single winner is not the")
+        add("  question. Read the screening table below instead.)")
+    elif top >= 0.85:
         add("  → Robust. The ranking is not an artefact of the exact numbers.")
     elif top >= 0.6:
         add("  → Leaning, not settled. Tighten the criterion the flip is most")
@@ -198,6 +275,37 @@ def main():
         add("    options are genuinely equivalent and you should decide on a")
         add("    factor outside this matrix.")
     add("")
+
+    if screening or b_idx is not None:
+        order_all = np.argsort(-T, axis=1)
+        add("-" * 70)
+        add("SCREENING — WHO RELIABLY MAKES THE CUT?")
+        head = f"  {'option':<28}"
+        if screening:
+            in_top = np.zeros(len(opts))
+            for i in range(len(opts)):
+                in_top[i] = np.mean(np.any(order_all[:, :k_top] == i, axis=1))
+            head += f" in top {k_top:<3}"
+        if b_idx is not None:
+            beats = np.mean(T > T[:, [b_idx]], axis=0)
+            head += "  beats baseline"
+        add(head)
+        key = in_top if screening else beats
+        for i in np.argsort(-key):
+            line = f"  {opts[i]:<28}"
+            if screening:
+                line += f"   {in_top[i] * 100:5.1f}%  "
+            if b_idx is not None:
+                line += "       —" if i == b_idx else f"      {beats[i] * 100:5.1f}%"
+            add(line)
+        add("")
+        if screening:
+            solid = [opts[i] for i in np.argsort(-in_top) if in_top[i] >= 0.8]
+            maybe = [opts[i] for i in np.argsort(-in_top) if 0.3 <= in_top[i] < 0.8]
+            add(f"  Reliably in the top {k_top}: {', '.join(solid) if solid else 'none'}")
+            if maybe:
+                add(f"  On the edge (the cut line is a judgement here): {', '.join(maybe)}")
+        add("")
 
     # --- Dominance ----------------------------------------------------------
     add("-" * 70)

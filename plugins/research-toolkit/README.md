@@ -107,3 +107,14 @@ Issue a new key at dashboard.exa.ai/api-keys, replace the one line in
 - 0.7.0 — exa-extras folded in; `exa-tools` skill; shared surface map.
 - 0.6.x — override of `exa:search`'s tool ban; crawl-date correction.
 - 0.5.0 — the two-pass method.
+
+## Changes in 1.4.0 (2026-11-10)
+
+- Three-line frame before searching: question, what counts as a match, done when. A user's example is an illustration, not a template.
+- "When to stop": a budget and stop condition per mode.
+- No near-duplicate queries.
+- Triage step for large sweeps; source-mix check with an extra pass when evidence is mostly vendor-written.
+- Every claim written from one source's own words.
+- Enumerate, Deep and Watch procedures moved to `references/mode-*.md`; SKILL.md is 365 lines (was 442).
+- New `references/parallel.md` for the second search tier.
+- Shorter description.

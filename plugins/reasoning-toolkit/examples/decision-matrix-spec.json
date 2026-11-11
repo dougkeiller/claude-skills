@@ -1,18 +1,57 @@
 {
   "decision": "Which EHR integration route for a multi-clinic pilot",
-  "scale": [1, 5],
-  "options": ["Redox", "Health Gorilla", "Direct HL7 build"],
+  "scale": [
+    1,
+    5
+  ],
+  "options": [
+    "Redox",
+    "Health Gorilla",
+    "Direct HL7 build"
+  ],
   "criteria": [
-    {"name": "Time to first live site", "weight": 30, "direction": "benefit"},
-    {"name": "Integration cost", "weight": 25, "direction": "cost"},
-    {"name": "Breadth of EHR coverage", "weight": 25, "direction": "benefit"},
-    {"name": "Control over the data model", "weight": 20, "direction": "benefit"}
+    {
+      "name": "Time to first live site",
+      "weight": 30,
+      "direction": "benefit"
+    },
+    {
+      "name": "Integration cost",
+      "weight": 25,
+      "direction": "cost"
+    },
+    {
+      "name": "Breadth of EHR coverage",
+      "weight": 25,
+      "direction": "benefit"
+    },
+    {
+      "name": "Control over the data model",
+      "weight": 20,
+      "direction": "benefit"
+    }
   ],
   "scores": {
-    "Redox":            {"Time to first live site": 5, "Integration cost": 4, "Breadth of EHR coverage": 5, "Control over the data model": 2},
-    "Health Gorilla":   {"Time to first live site": 4, "Integration cost": 3, "Breadth of EHR coverage": 4, "Control over the data model": 3},
-    "Direct HL7 build": {"Time to first live site": 1, "Integration cost": 2, "Breadth of EHR coverage": 2, "Control over the data model": 5}
+    "Redox": {
+      "Time to first live site": 5,
+      "Integration cost": 4,
+      "Breadth of EHR coverage": 5,
+      "Control over the data model": 2
+    },
+    "Health Gorilla": {
+      "Time to first live site": 4,
+      "Integration cost": 3,
+      "Breadth of EHR coverage": 4,
+      "Control over the data model": 3
+    },
+    "Direct HL7 build": {
+      "Time to first live site": 1,
+      "Integration cost": 2,
+      "Breadth of EHR coverage": 2,
+      "Control over the data model": 5
+    }
   },
   "score_uncertainty": 0.5,
-  "weight_confidence": "medium"
+  "weight_confidence": "medium",
+  "baseline": null
 }

@@ -43,3 +43,7 @@ session is not a source.
   benefits from the engineer who tried it in production.
 - **Absence is a finding.** If a domain source returns nothing on a topic it
   should cover, report that rather than filling the gap from the web.
+
+## Search tiers
+
+Exa first. When Exa is thin or off-target, Parallel second — see `parallel.md` for how its queries differ. Say which tier served the answer.

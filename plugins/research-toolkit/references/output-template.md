@@ -65,3 +65,9 @@ Two rules about the note that are easy to lose:
 - **A watchlist run writes a short note too**: what is new since the last run,
   one line per item with URL, or "nothing new since <date>" — which is a real
   result, not an empty section.
+
+## Also record (added v1.4)
+
+- **Frame**: the question, what counted as a match, and the "done when" line.
+- **Source mix**: how much of the evidence is vendor-written, independent, or roundup.
+- **Why searching stopped**: covered, budget reached, or nothing more found.
