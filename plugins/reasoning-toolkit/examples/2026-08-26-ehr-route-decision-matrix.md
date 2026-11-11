@@ -11,7 +11,7 @@ Status: complete
 
 > Worked example. Shows the note format and, more importantly, what it looks
 > like when the sensitivity analysis says the matrix has NOT decided anything.
-> Figures are a test fixture. Spec file: `decision-matrix-spec.json`.
+> Figures are a test fixture. The engine output below is from v0.2; v0.3 adds a baseline line, an equal-weights check and a screening table. Spec file: `decision-matrix-spec.json`.
 
 ## Stage 1 — Options
 

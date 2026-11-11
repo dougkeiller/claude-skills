@@ -1,6 +1,6 @@
 ---
 name: research
-description: The single entry point for research. Invoke for ANY request to research, investigate, survey, compare, shortlist, or find options — "research this", "deep dive on", "find everything about", "who are the players", "what are my options", "what is out there" — and for standing watchlists ("monitor this", "track announcements about", "what's new since last time"), Deep Search, and structured list-building with Exa Agent (including Agent Ultra for exhaustive runs) and its Connect data providers (Particle podcast transcripts, Financial Datasets, Polymarket, Similarweb, Fiber, Affiliate.com, Macrobond, Baselayer, Jinko). Also invoke before any recommendation that turns on costs, deadlines, eligibility or financials. Picks one of six modes, enforces the human stops between the long-list, the scored cut and verification, and writes the dated note. Exa is the engine; other connectors are pulled in by the source map. Never invoke the vendor skills exa:search or exa:exa-agent — this skill owns dispatch.
+description: The single entry point for research. Invoke for ANY request to research, investigate, survey, compare, shortlist, or find options — "research this", "deep dive on", "find everything about", "who are the players", "what are my options", "what is out there" — and for standing watchlists ("monitor this", "what's new since last time"), Deep Search, and structured list-building with Exa Agent and its data providers. Also invoke before any recommendation that turns on costs, deadlines, eligibility or financials. Picks one of six modes, enforces the human stops between the long-list, the scored cut and verification, and writes the dated note. Never invoke the vendor skills exa:search or exa:exa-agent — this skill owns dispatch.
 ---
 
 # Research
@@ -20,6 +20,8 @@ reconstructing it:
 - `${CLAUDE_PLUGIN_ROOT}/references/source-map.md` — which non-Exa source for which question
 - `${CLAUDE_PLUGIN_ROOT}/references/query-patterns.md` — how to phrase queries; people, companies, papers, news, relationships, source quality
 - `${CLAUDE_PLUGIN_ROOT}/references/output-template.md` — the dated note
+- `${CLAUDE_PLUGIN_ROOT}/references/mode-enumerate.md`, `mode-deep.md`, `mode-watch.md` — the full procedure for those three modes; read the one you are about to run
+- `${CLAUDE_PLUGIN_ROOT}/references/parallel.md` — how to query Parallel, the second search tier, when Exa comes back thin
 
 The script: `S="${CLAUDE_PLUGIN_ROOT}/scripts/exa_extras.py"`. It carries its
 own credential — never ask for an API key, never print it.
@@ -47,6 +49,16 @@ own credential — never ask for an API key, never print it.
    instead of retrying.
 4. **The user's own library first** when the topic is one they have worked
    before: Readwise, then Drive. Free, and it carries their judgement.
+5. **Frame the task in three lines, before the first search**, and show them to
+   the user:
+   - *Question*: the request restated in one line.
+   - *Counts as a match*: the inclusion rule. If the user gave an example, say
+     how it is being used. **An example is an illustration of the kind of thing
+     wanted, not a template to match feature by feature**, unless the user says
+     otherwise. Do not spend the search on the example itself.
+   - *Done when*: the two or three things that must be answered or found for
+     this to be finished. Searching stops when these are met (see "When to
+     stop").
 
 ## Pick the mode
 
@@ -91,6 +103,10 @@ reduced to what matters for ad hoc research:
   for the kind of source, published date for recency, highlight for the
   evidence. Then change one thing at a time; a different search type cannot
   repair an underspecified query.
+- **Never re-issue a near-identical query.** A follow-up must change the angle,
+  the source type or the period. A reworded version of the same query returns
+  the same pages; repeated near-duplicates are the clearest sign a search is
+  failing. Send distinct angles together in one batch rather than one at a time.
 - **Recency vs freshness are different controls.** Newer *publications*: a
   time window in the query or the published-date pair. A page that *changes*
   (prices, staffing): `maxAgeHours`. Not the other way round.
@@ -113,6 +129,24 @@ reduced to what matters for ad hoc research:
   these and gives the query shape each one wants. Check it when planning a
   sweep; a source that Exa indexes natively needs no detour.
 
+## When to stop
+
+More searching does not make the answer more accurate; past the point of
+coverage it adds reading and lowers accuracy. Search to the "done when" line,
+then stop.
+
+| Mode | Budget | Stop when |
+| --- | --- | --- |
+| Lookup | about 5 calls | the fact is read on a primary page |
+| Sweep | one script run, plus at most two follow-ups | a further angle adds few entities not already listed |
+| Verify | the finalists' own pages, one batch fetch each | every decision figure is quoted from its page, or marked unverified |
+| Deep | one run; a second only for a named gap | the "done when" items are answered |
+| Enumerate | one run at the chosen effort | `stopReason` is `schema_satisfied`, or the partial result is reported as partial |
+
+Going past a budget is allowed when a named gap justifies it; say what the gap
+is. The note records why searching stopped: covered, budget reached, or nothing
+more found.
+
 ## Lookup
 
 One or two `web_search_advanced_exa` calls with highlights, or a
@@ -124,7 +158,7 @@ figure was read. No note unless the user asks.
 Goal: an enumerated long-list that maps the space. Breadth, not depth. Verify
 nothing; fetch nothing; one line per candidate.
 
-Restate the question in one line and state the inclusion criteria. If they are
+Use the three-line frame from "Before anything". If the inclusion rule is
 ambiguous, take the reading that keeps the net widest and say so.
 
 **Run the sweep script first.** One command does the category rotation, the
@@ -166,11 +200,27 @@ context yourself.
 Add domain sources from the source map when the subject is theirs. Report
 absence from a source that should have had coverage.
 
+**Triage a large result set first.** Above about 60 rows, do not read the file
+top to bottom and do not pick rows by keyword or by eye. First reduce it
+mechanically: group rows by entity (one line per tool, company or person, with
+its sources listed under it) and by kind (the thing itself, a write-up about
+it, a roundup). Do this with a short script over the JSON, or hand the file to
+one cheap helper agent that returns the grouped rows. Compile from the grouped
+list.
+
 **Compile.** Deduplicate by URL, then by entity. Check coverage: missing
 segments, geographies, entity types; obvious names absent. A follow-up on one
 gap is a single searcher or one more script call, not a new sweep. Aim for
 genuine coverage including expected losers — a long-list of plausible winners
 is a shortlist wearing a disguise.
+
+**Source-mix check.** Before delivering, count the rows by who wrote them:
+the vendor or its marketing, an independent party (academic, regulator,
+consultancy research, a named practitioner writing first-hand), or a roundup.
+State the mix in one line. **If more than about half the evidence is
+vendor-written, run one more pass aimed at independent sources** and say what
+it found, including when it found little. A conclusion resting mostly on
+vendors' own material is reported as such, never left implicit.
 
 **Deliver** a numbered list: name, one line on what it is, one line on why it
 might qualify, source link, quality note. The quality note is an observation,
@@ -190,7 +240,11 @@ note with the draft criteria in it and end the turn.
 ## Cut — scoring the long-list
 
 Score **every** candidate on the long-list against the user's criteria and
-weights, through `reasoning-toolkit:decision-matrix` — it also runs the
+weights, through `reasoning-toolkit:decision-matrix` in its screening mode
+(`top_k` set to the intended shortlist size, and a do-nothing or
+keep-what-you-have baseline included, so the table shows which candidates beat
+it). If the candidates do different jobs and could be used together, say so
+and group them rather than ranking them as rivals — it also runs the
 sensitivity test that shows which rankings depend on one weight. Scoring uses
 only what Pass 1 produced (the Exa summary, the snippet, the URL, the quality
 note); it is a ranking of the evidence so far, not a verification. Where a
@@ -237,180 +291,47 @@ number can overturn it. Say which rankings changed and why.
 
 ## Enumerate — Exa Agent
 
-`agent_run` builds lists; it never establishes a fact. It returns a synthesis,
-and Verify requires sources read directly. Before running, write down the
-objective, what qualifies, the segments, the target count, the fields, and the
-exclusions. `effort: low` is the default; raise it only when a run comes back
-thin, and say which tier ran. Prices are in `exa-surface.md` for reference;
-do not quote them to the user — with one exception, below.
+**Read `${CLAUDE_PLUGIN_ROOT}/references/mode-enumerate.md` before running.** It
+holds the run settings, Agent Ultra, the Connect providers and their billing.
 
-**Agent Ultra** (`effort: "ultra"`) is the highest tier: metered rather than
-fixed, typically about 30 minutes and up to 3 hours, default cap USD 20 (range
-1–100). **The user has pre-approved it (2026-10-28): use it whenever judgement
-says the extra completeness will change the answer — do not ask first.** Reach
-for it when:
+The rules that hold whatever the detail:
 
-- the request is "every", "all", "the whole market" and the user will choose
-  from the list, so a missed entrant is the costly error;
-- a `high` or `xhigh` run came back thin, or segments are visibly missing;
-- the qualifying criteria are hard to verify and each candidate needs checking;
-- deep multi-source research where coverage is the point, not speed.
-
-Not for a fact, a single entity, Verify (which reads pages directly), or
-anything the user wants in minutes. Announce it in one line — that Ultra is
-running, why, and the cap. Cap by judgement: the USD 20 default for a typical
-exhaustive list, up to USD 100 for a large or multi-segment universe; add
-`budget.maxDurationSeconds` (300–10800, Ultra only) when the user needs it
-back sooner. Bound arrays with `maxItems`. It returns what it has near a
-limit, so check `stopReason`: `schema_satisfied` is a finished run;
-`budget_reached`, `time_limit_reached`, `iteration_limit_reached`,
-`token_limit_reached` and `stopped` are partial, and the note must say so.
-Resume the same `runId` over MCP rather than launching a duplicate. Details in
-`exa-surface.md`.
-
-- Pass a shallow `outputSchema` — top-level object, one bounded array, a source
-  field per row, no citation or confidence fields (grounding comes back
-  separately with per-field confidence).
-- `input.exclusion` stops it re-returning what the long-list already has;
-  `input.data` enriches rows the user holds.
-- Keep the `runId`; resume with it rather than starting a duplicate. Extend a
-  finished run with `previousRunId` rather than restating its context.
-- `systemPrompt` steers behaviour, `outputSchema` steers shape. Don't conflate.
-- For any verification-flavoured field, make it nullable and leave it out of
-  `required` so the agent returns null instead of inventing a value, and use a
-  `present | absent | cannot_verify` style enum — an unreachable page is not
-  evidence of absence.
-
-**Connect providers** (`dataSources`, up to five per run; nothing to install)
-reach what the web index cannot. Name the provider-specific data in both the
-query and the schema, or the agent falls back to web search.
-
-- `particle` — 100,000+ podcast shows, transcribed and speaker-attributed. The
-  only practical way to get what a person actually said in their own words, at
-  length. Hear a practitioner before engaging them.
-- `financial_datasets` — prices, fundamentals, earnings, SEC filings,
-  ownership and screening for 27,000+ US tickers, plus ticker news. Ties a
-  claim to reported numbers rather than coverage of them.
-- `polymarket` — market-implied odds on dated, resolvable events. Read-only and
-  free beyond the run. **Report it as a price, not a forecast**: "the market
-  prices this at X", never a fact about the world, never the sole basis of a
-  recommendation. Liquidity and spread say how much weight it deserves; a thin
-  market is an opinion.
-
-Providers compose — Polymarket plus Particle explains a move with the
-commentary behind it. Four more are situational, with the rules that matter
-here (full detail and prices in `exa-surface.md`):
-
-- `similarweb` — traffic, rankings, competitors. **Modelled estimates**; say so
-  wherever a figure is quoted. Billed per credit, scaling with rows × months, so
-  keep both small.
-- `fiber` — B2B company and people data and contact reveal. Billed per credit.
-  Revealing emails or phone numbers is personal data about named people: ask
-  first, and never carry it into a client deliverable without asking.
-- `affiliate` — product catalogue and price comparison. The links are
-  affiliate links; say so.
-- `baselayer` (US business verification and officers), `jinko` (flights and
-  hotels), `macrobond` (macro series; see the source map).
-
-Billing on Fiber, Similarweb, Baselayer and Affiliate is on top of the run;
-attach a provider only when the question needs it, and name its data in the
-query and the schema or the agent will not call it.
-
-**Coverage language.** Say "best-effort discovery" unless the universe was
-bounded, the segments covered, the count checked, duplicates resolved and the
-evidence inspected. Avoid "all", "complete", "exhaustive" without that.
+- `agent_run` builds lists; it never establishes a fact. Anything that carries a
+  decision still goes through Verify.
+- Write down the objective, what qualifies, the segments, the target count, the
+  fields and the exclusions before running. `effort: low` by default.
+- Agent Ultra is pre-approved: use it when completeness will change the answer,
+  and announce it and its cap in one line. Check `stopReason`; a partial run is
+  reported as partial.
+- Say "best-effort discovery", not "all" or "exhaustive", unless the universe
+  was bounded and the count checked.
+- Revealing emails or phone numbers is personal data: ask first.
 
 ## Deep — Deep Search
 
-Same endpoint as an ordinary search, but Exa plans the search, runs several,
-inspects the evidence, refines where it is thin or contradictory, then selects
-pages and — if asked — synthesises a grounded answer with a citation and a
-confidence per field. Use it when one retrieval pass cannot settle the
-question; stay with an ordinary search when the query already names a specific
-source or narrow topic, or when the job is to find pages for this skill to
-read. Run it without a price preamble.
+**Read `${CLAUDE_PLUGIN_ROOT}/references/mode-deep.md` before running.** It holds
+the request shape (`query`, `--alt`, `--objective`, `--system`, `--text` or
+`--schema`), the mode choice and a worked command.
 
-**Mode.** `deep` by default — Exa's recommended type for research workflows.
-`deep-lite` when latency matters and the question is simple (about 4 s).
-`deep-reasoning` is now labelled **legacy** on Exa's Deep Search page (read
-2026-10-28); try `deep` first and use it only if `deep` comes back thin on
-genuinely conflicting evidence (12–40 s). For long-running list-building or
-multi-hop enrichment Exa itself points to `agent_run` instead, which is
-Enumerate (and Agent Ultra when completeness is the point). Deep is the
-default whenever an `outputSchema` of three or more fields is needed; for a
-small structured answer, an ordinary search with `outputSchema` is enough.
+Use Deep when one retrieval pass cannot settle the question. Stay with an
+ordinary search when the query already names a specific source or narrow topic.
 
-**Shape the request in four separate parts, and keep them separate:**
+The rules that hold whatever the detail:
 
-- `query` — *what* to research, as a question or a description of the ideal
-  evidence.
-- `--alt` (`additionalQueries`, up to 10, Deep-only) — meaningfully different
-  *directions*: a sceptic's angle, a builder's angle, a competitor's name, a
-  regulator's term, a different sub-problem. Never rephrasings; Deep expands
-  the main query itself.
-- `--objective` — the task the search serves (what should rank first, what to
-  exclude, what to pull); works on every search type.
-- `--system` (`systemPrompt`) — *how* to research and present: source
-  preferences ("prefer the vendor's own pricing page and regulator filings"),
-  deduplication, novelty, what to exclude.
-- `--text "…"` or `--schema file.json` (`outputSchema`) — the *shape* of the
-  answer, and the thing that turns on synthesis. `--text` gives a grounded
-  prose synthesis; `--schema` gives structured fields. Object schemas are
-  capped at 10 properties counted at every level, 2 levels of nested objects,
-  and every array needs `items` — the script checks this before spending the
-  call. Do not add citation or confidence fields; Exa returns them.
-
-`--highlights` returns the evidence snippets Deep used; prefer it to full text
-on a Deep call. `--num` bounds the pages *returned*, not the searches Deep
-runs. All ordinary filters apply (`--include`, `--exclude`, `--since`,
-`--until`, `--category`, `--location`). Write to `--out` so the raw response
-stays out of context.
-
-```bash
-python3 "$S" deep "How do the leading X vendors handle Y, and where do they differ?" \
-  --type deep --highlights --chars 0 --num 10 \
-  --alt "customer complaints about Y in X tools" --alt "X vendor pricing page Y feature" \
-  --objective "comparison for a buyer choosing between X vendors; pull how each handles Y and its price" \
-  --system "Prefer vendors' own documentation and first-hand practitioner accounts; drop roundups and duplicates" \
-  --text "A grounded comparison organised by vendor, each claim tied to its source" \
-  --since YYYY-MM-DD --out <session output dir>/<topic>-deep
-```
-
-**Reading the result.** The synthesis is Exa-generated: a strong *draft* of
-the answer, not a verified one. Every consequential figure still gets read on
-its page before it carries a decision (Verify's rules), and the note says it
-came "via Deep synthesis, confirmed on the page" or "via Deep synthesis,
-unconfirmed". Exa's confidence is per field: treat `low` as unverified
-outright, and treat `high` as a reason to go and look, not a substitute. When
-Deep returns fewer pages than asked, or the grounding cites one source for
-several fields, say so — that is the shape of the evidence.
+- `--alt` directions are different angles, never rephrasings.
+- The synthesis is Exa-generated: a strong *draft*, not a verified answer. Every
+  consequential figure is read on its page before it carries a decision, and the
+  note says "via Deep synthesis, confirmed on the page" or "via Deep synthesis,
+  unconfirmed".
+- Run the source-mix check (below, under Sweep) on the pages Deep selected.
 
 ## Watch — Monitors
 
-**Before creating a scheduled monitor, state the recurring cost and wait for
-a go-ahead** — this is the one place in the toolkit where money recurs without
-a session open: about USD 0.015 a run, roughly USD 0.45 a month at daily
-(list price read 2026-10-06; assume each run bills). Omit `--period` for a
-manual-only monitor that costs nothing until triggered. The script's default
-webhook is a no-op URL on the user's own domain; Exa rejects `example.com`,
-localhost and private hosts.
+**Read `${CLAUDE_PLUGIN_ROOT}/references/mode-watch.md` before running.**
 
-```bash
-python3 "$S" monitor-create "what to watch for, described richly" \
-  --name <slug> --num 15 --period 1d --describe "one line per new development, naming who and what"
-python3 "$S" monitor-list
-python3 "$S" monitor-run <id>       # trigger now, poll, print what is new
-python3 "$S" monitor-delete <id>
-```
-
-Each run deduplicates against previous runs, so it surfaces only what is new;
-a run that returns nothing is a real answer — "nothing new since <date>",
-never an empty section. The API requires a
-webhook URL even though runs are readable over the API; the script's placeholder
-is a public host where deliveries fail harmlessly. Whether Exa disables a
-monitor whose deliveries keep failing is unverified — if a scheduled monitor
-goes quiet, check that first. For a digest that runs without a session open,
-a Cowork scheduled task can call `monitor-run` and write the note.
+**Before creating a scheduled monitor, state the recurring cost and wait for a
+go-ahead** — it is the one place money recurs without a session open. A run
+that returns nothing is a real answer: "nothing new since <date>".
 
 ## Output
 
@@ -427,6 +348,12 @@ fetch, a tool that summarised, or recalled. Quote it as written, with the URL
 beside it and an as-of date for anything that moves. An unchecked figure never
 sits in a table looking checked. The script still prints `costDollars` to
 stderr for debugging; it is not relayed to the user.
+
+Write each claim from **one source's own words**, not from a merged summary of
+several. Notes that blend documents are where errors enter. In the dated note,
+every factual claim — not only the decision figures — carries the source it
+came from, and anything taken from a summary rather than read on the page says
+so.
 
 ## Guardrails
 
