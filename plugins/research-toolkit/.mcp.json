@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "Exa": {
+      "type": "http",
+      "url": ""
+    }
+  }
+}
