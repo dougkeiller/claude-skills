@@ -1,0 +1,26 @@
+{
+  "name": "doug-skills",
+  "owner": {
+    "name": "Doug Keiller"
+  },
+  "metadata": {
+    "description": "Research and reasoning toolkits for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "research-toolkit",
+      "source": "./plugins/research-toolkit",
+      "description": "One research entry point with six modes on Exa, with human stops between the long-list, the scored cut and verification",
+      "version": "1.4.0",
+      "keywords": ["research", "exa", "search"]
+    },
+    {
+      "name": "reasoning-toolkit",
+      "source": "./plugins/reasoning-toolkit",
+      "description": "Eight decision and reasoning skills, including a decision matrix with real sensitivity analysis",
+      "version": "0.3.0",
+      "keywords": ["decision", "reasoning", "pre-mortem"]
+    }
+  ]
+}
